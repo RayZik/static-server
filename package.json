@@ -1,0 +1,22 @@
+{
+  "name": "static-server",
+  "version": "1.0.0",
+  "description": "Static Server",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RayZik/static-server.git"
+  },
+  "keywords": [
+    "static"
+  ],
+  "author": "Aleksey",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RayZik/static-server/issues"
+  },
+  "homepage": "https://github.com/RayZik/static-server#readme"
+}
