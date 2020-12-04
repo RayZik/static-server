@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html
+    lang="en"
+    xmlns="http://www.w3.org/1999/html"
+>
+
+<head>
+    <meta charset="UTF-16">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+    <title>Trakkit THS Setup</title>
+    <script src="user.js"></script>
+    <script>
+
+        var timr = null, runIt = 0, msgCanOverwrite = 1, showDetails = 0, scanDelay = 0;
+        function readBody(xhr) {
+            var data;
+            if (!xhr.responseType || xhr.responseType === "text") {
+                data = xhr.responseText;
+            } else if (xhr.responseType === "document") {
+                data = xhr.responseXML;
+            } else {
+                data = xhr.response;
+            }
+            return data;
+        }
+        function myMessage() {
+            msgCanOverwrite = 1;
+        }
+        function myScanDelay() {
+            scanDelay = 0;
+        }
+        function showP() {
+            var x = document.getElementById("key");
+            if (x.type === "password") {
+                x.type = "text";
+            } else {
+                x.type = "password";
+            }
+        }
+        function showD() {
+            if (showDetails) showDetails = 0; else showDetails = 1;
+        }
+        function startLoop() {
+            if (runIt) { runIt = 0; }
+            else { runIt = 1; }
+            if (timr) clearTimeout(timr);
+            timr = setTimeout(function () { myAction(3); }, 200);
+            var x = document.getElementById("ledbx");
+            if (x.style.display === "none" && runIt == 1) {
+                x.style.display = "block";
+            } else if (runIt == 0) {
+                x.style.display = "none";
+            }
+        }
+        function myAction(oAct) {
+            if (oAct != 3 && scanDelay == 1) {
+                setTimeout(function () { myAction(oAct); }, 500);
+                return;
+            }
+            if (window.XMLHttpRequest) {
+                var error = document.getElementById("error");
+                var msg = document.getElementById("msg");
+                var a = new XMLHttpRequest();
+                a.timeout = 1500;
+                a.addEventListener("timeout", function (e) {
+                    msg.innerHTML = "";
+                    error.innerHTML = "<span style='color: red;'>" +
+                        "WiFi - Reconnect to Trakkit</span>";
+                    document.getElementById("addp").disabled = true;
+                    document.getElementById("tesp").disabled = true;
+                    document.getElementById("delp").disabled = true;
+                    document.getElementById("rebo").disabled = true;
+                });
+                //                a.onerror= function(e) {
+                //                    //alert("Error fetching " + url);
+                //                };
+
+
+                a.onreadystatechange = function () {
+                    if (a.readyState == 4) {
+                        var output = a.responseText;
+
+                        if (a.status == 200) {
+                            document.getElementById("addp").disabled = false;
+                            document.getElementById("tesp").disabled = false;
+                            document.getElementById("delp").disabled = false;
+                            document.getElementById("rebo").disabled = false;
+
+                            error.innerHTML = "";
+                            if (msgCanOverwrite)
+                                msg.innerHTML = "<span style='color: green;'>" +
+                                    "CONNECTED</span>";
+                        }
+                        if (output != "Unknown Token" && a.status == 200) {
+
+                            var shorted = [];
+                            var skip = false;
+                            if (runIt) {
+                                var theText = output;
+                                if (showDetails == 0) {
+                                    skip = true;
+                                    if (output.indexOf(";") != -1) {
+                                        skip = false;
+                                        if (output.indexOf("s:0") != -1) {
+                                            skip = true;
+                                        }
+                                        shorted = output.split(';');
+                                        theText = shorted[0];// + " <> " + shorted[1];
+                                    } else if (output.indexOf("MAC ID") != -1) {
+                                        skip = false;
+                                        theText = "\r\n\r\n" + theText + "Available 2.4Ghz WiFi Networks\r\n\r\n";
+                                    }
+                                }
+
+                                if (!skip) {
+                                    if (
+                                        webkit &&
+                                        webkit.messageHandlers &&
+                                        webkit.messageHandlers.cordova_iab &&
+                                        webkit.messageHandlers.cordova_iab.postMessage
+                                    ) {
+                                        if (theText && /MAC:/.test(theText)) {
+                                            const MAC = theText.split(':')[1].trim() || '';
+
+                                            if (/^[a-fA-F0-9]{12}$/.test(MAC)) {
+                                                webkit.messageHandlers.cordova_iab.postMessage(JSON.stringify({ mac: String(MAC).toUpperCase() }));
+                                            }
+                                        }
+                                    }
+
+
+
+                                    var fieldName = document.getElementById('debugOut');
+                                    fieldName.innerHTML = fieldName.innerHTML + theText;
+                                    var mydiv = document.getElementById('debugDiv');
+                                    mydiv.scrollTop = mydiv.scrollHeight;
+                                }
+
+                            }
+                            if (output.indexOf("ScnStart") != -1) {
+                                msg.innerHTML = "<span style='color: orange;'>" +
+                                    "SCAN</span>";
+                                scanDelay = 1;
+                                setTimeout(function () { myScanDelay(); }, 2500);
+                                //msgCanOverwrite = 0;
+                                //setTimeout(function(){myMessage();}, 500);
+
+                            }
+                            if (output.indexOf("delete profiles") != -1) {
+                                msg.innerHTML = "<span style='color: orange;'>" +
+                                    "Profiles Deleted</span>";
+                                msgCanOverwrite = 0;
+                                setTimeout(function () { myMessage(); }, 2000);
+                            }
+                            else if (output.indexOf("Profile Added") != -1) {
+                                msg.innerHTML = "<span style='color: orange;'>" +
+                                    "Profile Added</span>";
+                                msgCanOverwrite = 0;
+                                setTimeout(function () { myMessage(); }, 2000);
+                            }
+                            // @merge
+                            timr = setTimeout(function () { myAction(3); }, 1000);
+
+                        }
+                        else {
+                            if (timr) window.clearTimeout(timr);
+                            timr = setTimeout(function () { myAction(3); }, 500);
+
+                        }
+
+                    }
+                    if (document.getElementById("ssid").value.length == 0 || document.getElementById("key").value.length == 0)
+                        document.getElementById("addp").disabled = true;
+
+
+                };
+                if (oAct == 3) {
+                    var error = document.getElementById("error");
+                    a.open("GET", "mydbg.txt", true);
+                    a.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                    try {
+                        a.send();
+                    } catch (exception) {
+                        error.innerHTML = "<span style='color: red;'>" +
+                            exception.name + "</span>";
+                        if (exception.name == 'NetworkError') {
+                            console.log('network error.');
+                        }
+                    }
+                } else {
+                    a.open("POST", "/api/1/wlan/en_ap_scan", true);
+                    if (oAct == 4) {
+                        a.send("__SL_P_UAS=1");
+                    } else {
+                        //if (runIt) {clearTimeout(timr); runIt=0;}
+                        if (oAct == 1)
+                            a.send("__SL_P_URR=1");
+                        if (oAct == 2)
+                            a.send("__SL_P_UDP=1");
+                        if (oAct == 5) {
+                            msg.innerHTML = "<span style='color: orange;'>" +
+                                "TESTING</span>";
+                            msgCanOverwrite = 0;
+                            setTimeout(function () { myMessage(); }, 6000);
+                            var fieldName = document.getElementById('debugOut');
+                            fieldName.innerHTML = "<span style='color: green; font-size: 10px;'>Check Trakkit lights, if they stay Off, Connection Successful.\r\n" +
+                                "Otherwise, Reconnect to Trakkit then Delete Profiles, and Repeat";
+
+                            a.send("__SL_P_USM=1");
+                        }
+                    }
+                }
+            } else
+                alert("browser not supported.");
+            return false;
+        }
+        function sendIt(oFormElement) {
+            if (scanDelay == 1) {
+                setTimeout(function () { sendIt(oFormElement); }, 500);
+                return;
+            }
+            if (window.XMLHttpRequest) {
+                var a = new XMLHttpRequest();
+                var s = encodeURIComponent(document.getElementById("ssid").value);
+                var t = encodeURIComponent(document.getElementById("securityType").value);
+                var k = encodeURIComponent(encodeURIComponent(document.getElementById("key").value));
+                var postdata = "__SL_P_U.E=" + s + "&" + "__SL_P_U.P=" + k + "&" + "__SL_P_U.T=" + t;
+                a.open("POST", "/api/1/wlan/en_ap_scan", true);
+                a.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                a.send(postdata);
+            } else
+                alert("browser not supported.");
+            return false;
+        }
+    </script>
+    <style type="text/css">
+        @media screen and (min-width: 100px) and (max-width: 199px) {
+            .button {
+                width: 25px;
+            }
+        }
+
+        @media screen and (min-width: 200px) and (max-width: 299px) {
+            .button {
+                width: 50px;
+            }
+        }
+
+        form .ssid,
+        form .security-type,
+        form .key {
+            margin-bottom: 25px;
+        }
+
+        form .ssid input,
+        form .security-type select,
+        form .key input {
+            width: 100%;
+        }
+
+        .debug {
+            border: 1px solid green;
+            font-size: 7px;
+            font-weight: bolder;
+            width: 100%;
+            height: 230px;
+            overflow: scroll;
+            white-space: pre-wrap;
+        }
+
+        .action-buttons {
+            padding-top: 25px;
+            text-align: center;
+        }
+
+        input#chk1 {
+            width: auto;
+        }
+
+        .leds {
+            background-size: cover;
+            padding: 3px;
+        }
+
+        .led-box {
+            height: 18px;
+            width: 10%;
+            margin: 5px 0;
+            float: left;
+        }
+
+        .led-green {
+            margin: 0 auto;
+            width: 12px;
+            height: 12px;
+            background-color: #ABFF00;
+            border-radius: 50%;
+            box-shadow: rgba(0, 0, 0, 0.2) 0 -1px 7px 1px, inset #304701 0 -1px 8px, #89FF00 0 2px 10px;
+        }
+
+    </style>
+</head>
+
+<body onLoad="setTimeout(function(){startLoop();}, 200);">
+    <div class="container">
+        <form>
+            <div class="ssid">
+                <label for="ssid">SSID</label>
+                <input
+                    type="text"
+                    placeholder="Enter SSID  (Case-sensitive)"
+                    required
+                    name="ssid"
+                    id="ssid"
+                    maxlength="32"
+                >
+            </div>
+            <div class="security-type">
+                <label for="securityType">Security Type</label>
+                <select
+                    name="securityType"
+                    id="securityType"
+                    required
+                >
+                    <option value="">Please select one option</option>
+                    <option value="0">Open</option>
+                    <option value="1">WEP</option>
+                    <option
+                        value="2"
+                        selected
+                    >WPA/WPA2</option>
+                </select>
+            </div>
+            <div class="key">
+                <label for="key">Key</label>
+                <input
+                    type="password"
+                    placeholder="Enter Password  (Case-sensitive)"
+                    name="key"
+                    id="key"
+                >
+                <input
+                    type="checkbox"
+                    onclick="showP()"
+                    id=chk1
+                >Show Password
+            </div>
+            <div class="action-buttons">
+                <button
+                    id="addp"
+                    onclick="setTimeout(function(){sendIt(0);}, 100);return false"
+                >Add Profile</button>
+            </div>
+        </form>
+        <div class="action-buttons">
+            <button
+                id="tesp"
+                onclick="setTimeout(myAction(5), 100)"
+            >Test Profile</button>
+        </div>
+        <div class="action-buttons">
+            <button
+                id="delp"
+                onclick="setTimeout(myAction(2), 100)"
+            >Delete Profiles</button>
+        </div>
+        <div class="action-buttons">
+            <button
+                id="rebo"
+                onclick="setTimeout(myAction(1), 100)"
+            >Reboot</button>
+        </div>
+        <p></p>
+        <div class="debugH">
+            <div class="leds">
+                <div class="led-box">
+                    <div
+                        class="led-green"
+                        id="ledbx"
+                    ></div>
+                </div>
+            </div>
+            <button onclick="setTimeout(startLoop(), 100)">Pause</button>
+            &nbsp;&nbsp;&nbsp;<span id="error"></span>
+            &nbsp;<span id="msg"></span>
+            &nbsp;<br>
+        </div>
+        <div
+            class="debug"
+            id="debugDiv"
+        >
+            <div id="debugOut"></div>
+        </div>
+        <p style="font-size:8px;">Copyright &copy; Trakkit, LLC &nbsp;www.trakkitgps.com</p>&nbsp;&nbsp;&nbsp;<input
+            type="checkbox"
+            onclick="showD()"
+            id=chk3
+        >Show Details
+    </div>
+</body>
+
+</html>
